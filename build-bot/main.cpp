@@ -390,6 +390,7 @@ int32 coffee_main(int32 argc, cstring_w* argv)
         ArgumentCollection args;
 
         /* Allow customizing path to Git and CMake, for Windows */
+        args.registerArgument(ArgumentCollection::Argument,"help");
         args.registerArgument(ArgumentCollection::Argument,"gitbin");
         args.registerArgument(ArgumentCollection::Argument,"cmakebin");
         args.registerArgument(ArgumentCollection::Argument,"server");
@@ -400,7 +401,20 @@ int32 coffee_main(int32 argc, cstring_w* argv)
 
         for(std::pair<CString,cstring> const& arg : args.getArgumentOptions())
         {
-            if(arg.first == "gitbin" && arg.second)
+            if(arg.first == "help" && arg.second)
+            {
+                cBasicPrint("{0} [options] {configs (.json)}\n"
+                            "Options available:\n"
+                            " --help Show this message and exit\n"
+                            " --gitbin [bin] Specify Git binary\n"
+                            " --cmakebin [bin] Specify CMake binary\n"
+                            " --server [address] Address of server\n"
+                            " --serverport [poty] Port on server to connect to\n"
+                            " --crosscompiling [id] ID to expose to build server\n",
+                            Env::ExecutableName());
+                return 0;
+            }
+            else if(arg.first == "gitbin" && arg.second)
                 git_program = arg.second;
             else if(arg.first == "cmakebin" && arg.second)
                 cmake_program = arg.second;
