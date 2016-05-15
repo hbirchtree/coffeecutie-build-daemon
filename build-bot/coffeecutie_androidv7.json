@@ -5,7 +5,7 @@
     "upstream": "origin.https",
     "build-dir": "/home/havard/Code/coffeecutie/build_Android_v7a",
     "repo-dir": "/home/havard/Code/coffeecutie",
-    "interval": 10,
+    "interval": 600,
     "build-type": "cmake",
     "cleans": false,
     "clean-command": {

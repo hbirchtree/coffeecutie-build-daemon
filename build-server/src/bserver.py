@@ -11,7 +11,7 @@ ALLOWED_EXTENSIONS = set(['zip','tar.xz'])
 app = Flask(__name__,static_folder='../static',template_folder='../templates');
 app.config.from_object(__name__);
 
-app.config['MAX_CONTENT_LENGTH'] = 16*1024*1024;
+app.config['MAX_CONTENT_LENGTH'] = 50*1024*1024;
 
 BINARY_DIR = os.path.join(app.root_path,'../bin')
 
@@ -151,10 +151,12 @@ def get_binary_release(bid):
 # For servers, publishing binary releases, no magic type checking (yet, python-magic exists)
 @app.route("/bin/upload/data/<arch>/<int:bid>",methods=['POST'])
 def push_binary_release(arch,bid):
-    if len(request.data) > app.config['MAX_CONTENT_LENGTH']:
+    sz = len(request.data);
+    print("Received %s bytes of binary data" % (sz,));
+    if sz > app.config['MAX_CONTENT_LENGTH']:
         return "Too big, senpai";
     if request.mimetype != "application/base64":
-        return "Invalid data packet!";
+        return "Invalid data packet, mime-ing wrong";
     data = query_db("SELECT PLATFORM_ID FROM BUILDREPORTS AS B WHERE B.REPORT_ID = ? AND B.PLATFORM_ID = ?;",args=(bid,arch),one=True);
     tmp_name = '%s.zip' % (bid,);
     if not data or data[0] != arch:
@@ -164,8 +166,8 @@ def push_binary_release(arch,bid):
     file_data = None;
     try:
         file_data = base64.b64decode(request.data);
-    except TypeError:
-        return "Invalid data packet!";
+    except TypeError as e:
+        return "Invalid data packet, bad ju-ju: %s" % (e,);
     file = open(BINARY_DIR+"/"+tmp_name,"wb");
     file.write(file_data);
     file.close();

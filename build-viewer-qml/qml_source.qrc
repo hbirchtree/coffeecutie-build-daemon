@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/qmldata">
+        <file>BuildView.qml</file>
+        <file>BuildViewForm.ui.qml</file>
+    </qresource>
+</RCC>

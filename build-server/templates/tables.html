@@ -8,10 +8,12 @@
     <meta name="author" content="">
 
     <title>{{ title }} - {{ project }}</title>
-
+    
+    <script src="{{ url_for('static', filename='dist/js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='dist/js/bootstrap.min.js') }}"></script>
+    
     <!-- Bootstrap Core CSS -->
-    <link href="{{ url_for('static', filename='dist/css/bootstrap.min.css') }}" rel="stylesheet">
-
+    <link href="{{ url_for('static', filename='dist/css/bootstrap-combined.min.css') }}" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='dist/css/sb-admin-2.css') }}" rel="stylesheet">
 </head>
@@ -27,43 +29,78 @@
         <!-- /.row -->
         <div class="row">
             <div class="table-responsive table-bordered">
-                <table class="table table-hover">
+                <table class="table table-hover" style="border-collapse:collapse;">
                     <thead>
                         <tr>
                             <th>Host</th>
                             <th>Platform</th>
-                            <th>Commit</th>
-                            <th>Status</th>
-                            <th>Logfile</th>
-                            <th>Binaries</th>
+                            <th>Time</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for entry in entries %}
-                        {% if not entry[4] %}
-                        <tr class="success">
+                        <tr data-toggle="collapse"
+                            data-target="#data{{ entry[0] }}"
+                            colspan="4"
+                        {% if entry[4] == 0 %}
+                            class="success accordion-toggle"
                         {% else %}
-                        <tr class="danger">
+                            class="danger accordion-toggle"
                         {% endif %}
+                            >
                             <td>{{ entry[1] }}</td>
                             <td>{{ entry[3] }}</td>
-                            <td>{{ entry[2] }}</td>
-                            {% if not entry[4] %}
-                            <td>Success</td>
-                            {% else %}
-                            <td>Failure</td>
-                            {% endif %}
-                            <td><a href="logs/{{ entry[0] }}">(Link)</a></td>
-                            <td><a href="bin/{{ entry[0] }}">(Link)</a></td>
+                            <td>{{ entry[6] }}</td>
+                        </tr>
+                        
+                        <tr>
+                            <td colspan="3" class="hiddenRow">
+                                <div class="accordian-body collapse" id="data{{ entry[0] }}">
+                                    <table class="table">
+                                        <tbody>
+                                            <tr>
+                                                <td>Commit</td>
+                                                <td class="truncated" colspan="3">
+                                                    {{ entry[2][0:10] }}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Status</td>
+                                                    {% if entry[4] == 0 %}
+                                                <td colspan="3" class="text-success">
+                                                    Success
+                                                    {% else %}
+                                                <td colspan="3" class="text-danger">
+                                                    Failure
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Log</td>
+                                                <td>
+                                                    <a href="logs/{{ entry[0] }}" target="_blank">
+                                                        (Link)
+                                                    </a>
+                                                </td>
+                                                <td>Release</td>
+                                                <td>
+                                                    {% if entry[4] != 0 %}
+                                                    N/A
+                                                    {% else %}
+                                                    <a href="bin/{{ entry[0] }}" target="_blank">
+                                                        (Link)
+                                                    </a>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </td>
                         </tr>
                         {% else %}
-                        <tr class="info">
-                            <td>N/A</td>
-                            <td>No builds to display!</td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>N/A</td>
+                        <tr class="info" colspan="8">
+                            <td colspan="8" class="text-info">No builds to display!</td>
                         </tr>
                         {% endfor %}
                     </tbody>
