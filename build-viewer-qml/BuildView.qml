@@ -1,11 +1,16 @@
 import QtQuick 2.4
 import QtQuick.Controls 1.4
+import buildview 1.0
 
 ApplicationWindow {
     title: qsTr("Build Viewer")
     width: 640
     height: 480
     visible: true
+
+    BuildInfo {
+        id: data_source
+    }
 
     ListModel {
         id: build_data
@@ -32,6 +37,9 @@ ApplicationWindow {
 
     BuildViewForm{
         anchors.fill: parent
+
+        loadIndicatorWidget.running: data_source.fetching
+        loadIndicatorWidget.visible: data_source.fetching
 
         ListView {
             id: listView1
@@ -124,14 +132,18 @@ ApplicationWindow {
                     Transition {
                         from: "*"
                         to: "expanded"
-                        NumberAnimation { properties: "height"; easing.type: Easing.InOutQuad; duration: 200 }
-                        NumberAnimation { properties: "opacity"; easing.type: Easing.InOutQuad; duration: 200 }
+                        NumberAnimation { properties: "height";
+                            easing.type: Easing.InOutQuad; duration: 200 }
+                        NumberAnimation { properties: "opacity";
+                            easing.type: Easing.InOutQuad; duration: 200 }
                     },
                     Transition {
                         from: "*"
                         to: "default"
-                        NumberAnimation { properties: "height"; easing.type: Easing.InOutQuad; duration: 200 }
-                        NumberAnimation { properties: "opacity"; easing.type: Easing.InOutQuad; duration: 200 }
+                        NumberAnimation { properties: "height";
+                            easing.type: Easing.InOutQuad; duration: 200 }
+                        NumberAnimation { properties: "opacity";
+                            easing.type: Easing.InOutQuad; duration: 200 }
                     }
                 ]
             }
