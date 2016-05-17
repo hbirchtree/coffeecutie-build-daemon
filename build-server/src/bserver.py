@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 
-import os,base64,sqlite3,time,datetime
+import os,base64,sqlite3,time,datetime,md5
 
-from flask import Flask,g,url_for,send_from_directory,request,Response,jsonify,render_template
+from flask import Flask,g,url_for,send_from_directory,request,Response,jsonify,render_template,redirect
 from werkzeug import secure_filename
 
-ALLOWED_EXTENSIONS = set(['zip','tar.xz'])
+ALLOWED_EXTENSIONS = set(['zip'])
 
 # Create an instance of Flask
 app = Flask(__name__,static_folder='../static',template_folder='../templates');
@@ -17,6 +17,8 @@ BINARY_DIR = os.path.join(app.root_path,'../bin')
 
 PROJECT_TITLE = "Coffee"
 
+app.config['UPLOAD_FOLDER'] = BINARY_DIR;
+
 # Load default config and override config from an environment variable
 app.config.update(dict(
     DATABASE=os.path.join(app.root_path, '../db/error_reports.db'),
@@ -25,6 +27,10 @@ app.config.update(dict(
     PASSWORD='default'
 ));
 app.config.from_envvar('FLASKR_SETTINGS', silent=True);
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
 def connect_to_database():
     return sqlite3.connect(app.config['DATABASE']);
@@ -112,7 +118,7 @@ def build_log_data(arch):
     logdata = ''
     try:
         # Truncate log if too long
-        obj['log'] = obj['log'][len(obj['log'])-1000000:len(obj['log'])]
+        obj['log'] = obj['log'][:-1000000]
         obj['platform'] = arch;
         # Imprint reporting time, useful to know when a build was released
         # Might include build duration as well
@@ -140,38 +146,53 @@ def get_build_log(bid):
             pass;
     return "[THERE IS NOTHING TO SEE HERE]";
 
+# For binary uploads, MD5-hashes values for mapping build server+arch+commit to file
+def gen_binary_filename(arch,host,commit):
+    m = md5.new();
+    m.update("%s%s%s" % (arch,host,commit[:10]));
+    print("Generated: %s" % (m.hexdigest(),));
+    return m.hexdigest();
+
 # For clients, retrieving binary releases
 @app.route("/bin/<int:bid>",methods=['GET'])
 def get_binary_release(bid):
-    data = query_db("SELECT BUILD_HASH,PLATFORM_ID,SERVERID FROM BUILDREPORTS AS B WHERE B.REPORT_ID = ?;",args=(bid,),one=True);
-    print("Looking for file: "+'%s_%s_%s.zip' % (data[2],data[0],data[1]));
-    return send_from_directory(BINARY_DIR, '%s.zip' % (bid,),
+    data = query_db("SELECT PLATFORM_ID,SERVERID,BUILD_HASH FROM BUILDREPORTS WHERE REPORT_ID = ?;",args=(bid,),one=True);
+
+    if not data:
+        return "[THERE IS NOTHING TO SEE HERE]";
+
+    binname = gen_binary_filename(data[0],data[1],data[2]);
+
+    print("Looking for file: "+'%s.zip' % (binname,));
+
+    return send_from_directory(BINARY_DIR, secure_filename('%s.zip' % (binname,)),
         as_attachment=True,attachment_filename="%s-%s_(%s).zip" % (PROJECT_TITLE,data[0],data[1]));
 
 # For servers, publishing binary releases, no magic type checking (yet, python-magic exists)
-@app.route("/bin/upload/data/<arch>/<int:bid>",methods=['POST'])
-def push_binary_release(arch,bid):
-    sz = len(request.data);
-    print("Received %s bytes of binary data" % (sz,));
-    if sz > app.config['MAX_CONTENT_LENGTH']:
-        return "Too big, senpai";
-    if request.mimetype != "application/base64":
-        return "Invalid data packet, mime-ing wrong";
-    data = query_db("SELECT PLATFORM_ID FROM BUILDREPORTS AS B WHERE B.REPORT_ID = ? AND B.PLATFORM_ID = ?;",args=(bid,arch),one=True);
-    tmp_name = '%s.zip' % (bid,);
-    if not data or data[0] != arch:
-        return "Data mismatch";
-    if os.path.isfile(BINARY_DIR+"/"+tmp_name):
-        return "File exists!";
-    file_data = None;
-    try:
-        file_data = base64.b64decode(request.data);
-    except TypeError as e:
-        return "Invalid data packet, bad ju-ju: %s" % (e,);
-    file = open(BINARY_DIR+"/"+tmp_name,"wb");
-    file.write(file_data);
-    file.close();
-    return "Absolute organ failure";
+@app.route("/bin/upload/data/<arch>/<host>/<commit>",methods=['POST'])
+def push_binary_release(arch,host,commit):
+    commit = commit[:10];
+    commit_s = "%s%%" % (commit,);
+
+    data = query_db("""
+                    SELECT REPORT_ID FROM BUILDREPORTS
+                    WHERE PLATFORM_ID = ? AND
+                    SERVERID = ? AND
+                    BUILD_HASH LIKE ?;
+                    """,
+                    args=(arch,host,commit_s),one=True);
+
+    if not data:
+        return '{"status": 1}';
+
+    binname = gen_binary_filename(arch,host,commit);
+
+    file = request.files['file'];
+    if file and allowed_file(file.filename):
+        filename = secure_filename("%s.zip" % (binname,));
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename));
+        return '{"status": 0}';
+    return '{"status": 1}';
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0',debug=True);
