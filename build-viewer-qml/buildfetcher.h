@@ -90,7 +90,7 @@ public slots:
 
     void receiveUpdate()
     {
-	QNetworkReply* rep = dynamic_cast<QNetworkReply*>(sender());
+	QNetworkReply* rep = static_cast<QNetworkReply*>(sender());
 
 	if(rep)
 	{
