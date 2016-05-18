@@ -84,7 +84,7 @@
                                                 </td>
                                                 <td>Release</td>
                                                 <td>
-                                                    {% if entry[4] != 0 %}
+                                                    {% if entry[4] != 0 or entry[7] != True %}
                                                     N/A
                                                     {% else %}
                                                     <a href="bin/{{ entry[0] }}" target="_blank">

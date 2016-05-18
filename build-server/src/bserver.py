@@ -61,11 +61,11 @@ def enter_report(obj):
     query_db("INSERT INTO BUILDREPORTS VALUES(NULL,?,?,?,?,?,?);",args=(obj['host'],obj['commit'],obj['platform'],obj['status'],obj['log'],obj['time']));
     return;
 
-@app.teardown_appcontext
-def close_db(exception):
-    db = getattr(g,'_database',None);
-    if db != None:
-        db.close();
+# For binary uploads, MD5-hashes values for mapping build server+arch+commit to file
+def gen_binary_filename(arch,host,commit):
+    m = md5.new();
+    m.update("%s%s%s" % (arch,host,commit[:10]));
+    return m.hexdigest()+".zip";
 
 def get_log_data():
     elements = query_db("SELECT * FROM BUILDREPORTS;");
@@ -78,8 +78,17 @@ def get_log_data():
                 ref.append(int(rw[i]));
             else:
                 ref.append(str(rw[i]));
+        print(len(ref));
+        ref.append(os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], gen_binary_filename(ref[3],ref[1],ref[2]) )));
+        print(ref[7]);
         cpy.append(ref);
     return cpy;
+
+@app.teardown_appcontext
+def close_db(exception):
+    db = getattr(g,'_database',None);
+    if db != None:
+        db.close();
 
 # REST-ful interface to get log data links and etc.
 @app.route("/rest",methods=['GET'])
@@ -95,6 +104,7 @@ def restful_route():
         el_d['platform'] = el[3];
         el_d['status'] = el[4];
         el_d['time'] = el[5];
+        el_d['has_binary'] = el[7];
         rst.append(el_d);
     return jsonify({'logs':rst});
 
@@ -146,13 +156,6 @@ def get_build_log(bid):
             pass;
     return "[THERE IS NOTHING TO SEE HERE]";
 
-# For binary uploads, MD5-hashes values for mapping build server+arch+commit to file
-def gen_binary_filename(arch,host,commit):
-    m = md5.new();
-    m.update("%s%s%s" % (arch,host,commit[:10]));
-    print("Generated: %s" % (m.hexdigest(),));
-    return m.hexdigest();
-
 # For clients, retrieving binary releases
 @app.route("/bin/<int:bid>",methods=['GET'])
 def get_binary_release(bid):
@@ -165,7 +168,7 @@ def get_binary_release(bid):
 
     print("Looking for file: "+'%s.zip' % (binname,));
 
-    return send_from_directory(BINARY_DIR, secure_filename('%s.zip' % (binname,)),
+    return send_from_directory(BINARY_DIR, secure_filename('%s' % (binname,)),
         as_attachment=True,attachment_filename="%s-%s_(%s).zip" % (PROJECT_TITLE,data[0],data[1]));
 
 # For servers, publishing binary releases, no magic type checking (yet, python-magic exists)
@@ -189,7 +192,7 @@ def push_binary_release(arch,host,commit):
 
     file = request.files['file'];
     if file and allowed_file(file.filename):
-        filename = secure_filename("%s.zip" % (binname,));
+        filename = secure_filename("%s" % (binname,));
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename));
         return '{"status": 0}';
     return '{"status": 1}';
