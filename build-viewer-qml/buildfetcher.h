@@ -88,6 +88,7 @@ public slots:
 	fetchingChanged(m_fetching);
     }
 
+private slots:
     void receiveUpdate()
     {
 	QNetworkReply* rep = static_cast<QNetworkReply*>(sender());
@@ -137,6 +138,7 @@ public slots:
 	}
     }
 
+public slots:
     void setServer(QString server)
     {
         if (m_server == server)
