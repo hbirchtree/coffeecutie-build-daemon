@@ -9,7 +9,7 @@ int main(int argc, char** argv)
 {
     QGuiApplication app(argc,argv);
 
-    qmlRegisterType<BuildInformationFetcher>("buildview",1,0,"BuildInfo");
+    qmlRegisterType<BuildInformationFetcher>("BuildView",1,0,"BuildInfo");
 
     QQmlApplicationEngine engine;
     engine.load(QUrl("qrc:/qmldata/BuildView.qml"));

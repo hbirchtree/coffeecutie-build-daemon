@@ -1,20 +1,17 @@
 import QtQuick 2.4
 import QtQuick.Controls 1.4
-import buildview 1.0
+import QtQuick.Layouts 1.2
+import BuildView 1.0
 
 ApplicationWindow {
     title: qsTr("Build Viewer")
-    width: 640
-    height: 480
     visible: true
-
     onSceneGraphInitialized: data_source.update()
 
     BuildInfo {
         id: data_source
         server: "25.57.48.59"
         serverPort: 5000
-
         onFetchingChanged: {
             bform.loadIndicatorWidget.running = data_source.fetching
             bform.loadIndicatorWidget.visible = data_source.fetching
@@ -36,7 +33,7 @@ ApplicationWindow {
             spacing: 5
             delegate: Item {
                 id: delegateItemThingy
-                width: 630
+                width: parent.width
                 height: 40
 
                 MouseArea {
@@ -66,6 +63,17 @@ ApplicationWindow {
                             width: 40
                             height: 40
                             color: colorCode
+                            border.color: colorCode
+                            gradient: Gradient {
+                                GradientStop {
+                                    position: 0.00;
+                                    color: Qt.darker(colorCode,1.2);
+                                }
+                                GradientStop {
+                                    position: 0.50;
+                                    color: Qt.darker(colorCode,2.0);
+                                }
+                            }
                         }
 
                         Column{
@@ -92,10 +100,42 @@ ApplicationWindow {
                         x: 0
                         y: 40
                         anchors.topMargin: 45
+
+                        GridLayout {
+                            anchors.fill: parent
+                            flow: GridLayout.LeftToRight
+                            rowSpacing: 5
+                            columns: 2
+
+                            Label {
+                                font.italic: true
+                                font.bold: true
+                                text: qsTr("Commit")
+                            }
+                            Label {
+                                text: commit
+                            }
+
+                            Label {
+                                font.italic: true
+                                font.bold: true
+                                text: qsTr("Build ID")
+                            }
+                            Label {
+                                text: bid
+                            }
+
+                            Label {
+                                font.italic: true
+                                font.bold: true
+                                text: qsTr("Released")
+                            }
+                            Label {
+                                text: has_bin ? "Yes" : "No"
+                            }
+                        }
                     }
                 }
-
-
 
                 states: [
                     State {

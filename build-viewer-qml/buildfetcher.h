@@ -110,17 +110,19 @@ public slots:
 		    QJsonObject b = obj.toObject();
 
 		    it->setData(b["bid"].toVariant().toULongLong(),BuildId);
-		    it->setData(b["commit"].toString(),CommitId);
+		    it->setData(b["commit"].toString().mid(0,10),CommitId);
 		    it->setData(b["has_binary"].toBool(),HasBinary);
 		    it->setData(b["host"].toString(),HostId);
 		    it->setData(b["platform"].toString(),PlatformId);
 		    it->setData(b["status"].toInt(),StatusId);
-		    it->setData(b["time"].toVariant().toULongLong(),TimeId);
+		    it->setData(QDateTime::fromMSecsSinceEpoch(
+				    b["time"].toVariant().toULongLong()*1000),
+				TimeId);
 
 		    if(b["status"].toInt() == 0)
-			it->setData("green",ColorId);
+			it->setData(QColor("green"),ColorId);
 		    else
-			it->setData("red",ColorId);
+			it->setData(QColor("red"),ColorId);
 
 		    appendRow(it);
 		}
