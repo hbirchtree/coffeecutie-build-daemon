@@ -8,34 +8,44 @@ ApplicationWindow {
     height: 480
     visible: true
 
+    onSceneGraphInitialized: data_source.update()
+
     BuildInfo {
         id: data_source
+        server: "25.57.48.59"
+        serverPort: 5000
+
+        onFetchingChanged: {
+            bform.loadIndicatorWidget.running = data_source.fetching
+            bform.loadIndicatorWidget.visible = data_source.fetching
+        }
     }
 
-    ListModel {
-        id: build_data
+//    ListModel {
+//        id: build_data
 
-        ListElement {
-            host: "Betelgeuse"
-            platform: "lin64_amd64"
-            colorCode: "blue"
-            timest: "2000-00-00T00:00:00"
-        }
-        ListElement {
-            host: "betelzombie"
-            platform: "win64_amd64"
-            colorCode: "red"
-            timest: "2000-00-00T00:00:00"
-        }
-        ListElement {
-            host: "Hackintosh-Builder.local"
-            platform: "mac64_amd64"
-            colorCode: "green"
-            timest: "2000-00-00T00:00:00"
-        }
-    }
+//        ListElement {
+//            host: "Betelgeuse"
+//            platform: "lin64_amd64"
+//            colorCode: "blue"
+//            timest: "2000-00-00T00:00:00"
+//        }
+//        ListElement {
+//            host: "betelzombie"
+//            platform: "win64_amd64"
+//            colorCode: "red"
+//            timest: "2000-00-00T00:00:00"
+//        }
+//        ListElement {
+//            host: "Hackintosh-Builder.local"
+//            platform: "mac64_amd64"
+//            colorCode: "green"
+//            timest: "2000-00-00T00:00:00"
+//        }
+//    }
 
     BuildViewForm{
+        id: bform
         anchors.fill: parent
 
         loadIndicatorWidget.running: data_source.fetching
@@ -57,7 +67,6 @@ ApplicationWindow {
                     anchors.fill: parent
 
                     onClicked: {
-                        console.log("Clicked!")
                         if(delegateItemThingy.state != "expanded")
                             delegateItemThingy.state = "expanded"
                         else
@@ -147,7 +156,7 @@ ApplicationWindow {
                     }
                 ]
             }
-            model: build_data
+            model: data_source
         }
     }
 }
