@@ -67,7 +67,7 @@ def query_db(query,args=(),one=False):
 
 # Submitting a build report to the database
 def enter_report(obj):
-    query_db("INSERT INTO BUILDREPORTS VALUES(NULL,?,?,?,?,?,?);",args=(obj['host'],obj['commit'],obj['platform'],obj['status'],obj['log'],obj['time']));
+    query_db("INSERT INTO BUILDREPORTS VALUES(NULL,?,?,?,?,?,?,?);",args=(obj['host'],obj['commit'],obj['platform'],obj['status'],obj['log'],obj['time'],0));
     return;
 
 # For binary uploads, MD5-hashes values for mapping build server+arch+commit to file
