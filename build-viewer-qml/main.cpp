@@ -1,3 +1,5 @@
+#include <coffee/core/CApplication>
+
 #include <QtDebug>
 #include <QApplication>
 #include <QQmlApplicationEngine>
@@ -5,7 +7,9 @@
 
 #include "buildfetcher.h"
 
-int main(int argc, char** argv)
+using namespace Coffee;
+
+int32 qt_main(int32 argc, cstring_w* argv)
 {
     QGuiApplication app(argc,argv);
 
@@ -16,3 +20,5 @@ int main(int argc, char** argv)
 
     return app.exec();
 }
+
+COFFEE_APPLICATION_MAIN(qt_main)

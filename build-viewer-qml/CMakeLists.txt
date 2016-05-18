@@ -10,6 +10,6 @@ set ( Viewer_Srcs
     ${RESOURCES}
     )
 
-coffee_add_example ( BuildViewer "Build Viewer" "${Viewer_Srcs}" "" )
+coffee_add_example ( BuildViewer "Build Viewer" "${Viewer_Srcs}" CoffeeCore )
 
 qt5_use_modules ( BuildViewer Widgets Quick Network )
