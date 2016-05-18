@@ -40,33 +40,33 @@
                     <tbody>
                         {% for entry in entries %}
                         <tr data-toggle="collapse"
-                            data-target="#data{{ entry[0] }}"
+                            data-target="#data{{ entry['bid'] }}"
                             colspan="4"
-                        {% if entry[4] == 0 %}
+                        {% if entry['status'] == 0 %}
                             class="success accordion-toggle"
                         {% else %}
                             class="danger accordion-toggle"
                         {% endif %}
                             >
-                            <td>{{ entry[1] }}</td>
-                            <td>{{ entry[3] }}</td>
-                            <td>{{ entry[6] }}</td>
+                            <td>{{ entry['host'] }}</td>
+                            <td>{{ entry['platform'] }}</td>
+                            <td>{{ entry['time'] }}</td>
                         </tr>
                         
                         <tr>
                             <td colspan="3" class="hiddenRow">
-                                <div class="accordian-body collapse" id="data{{ entry[0] }}">
+                                <div class="accordian-body collapse" id="data{{ entry['bid'] }}">
                                     <table class="table">
                                         <tbody>
                                             <tr>
                                                 <td>Commit</td>
                                                 <td class="truncated" colspan="3">
-                                                    {{ entry[2][:10] }}
+                                                    {{ entry['commit'][:10] }}
                                                 </td>
                                             </tr>
                                             <tr>
                                                 <td>Status</td>
-                                                    {% if entry[4] == 0 %}
+                                                    {% if entry['status'] == 0 %}
                                                 <td colspan="3" class="text-success">
                                                     Success
                                                     {% else %}
@@ -78,16 +78,16 @@
                                             <tr>
                                                 <td>Log</td>
                                                 <td>
-                                                    <a href="logs/{{ entry[0] }}" target="_blank">
+                                                    <a href="logs/{{ entry['bid'] }}" target="_blank">
                                                         (Link)
                                                     </a>
                                                 </td>
                                                 <td>Release</td>
                                                 <td>
-                                                    {% if entry[4] != 0 or entry[7] != True %}
+                                                    {% if entry['status'] != 0 or entry['has_binary'] != True %}
                                                     N/A
                                                     {% else %}
-                                                    <a href="bin/{{ entry[0] }}" target="_blank">
+                                                    <a href="bin/{{ entry['bid'] }}" target="_blank">
                                                         (Link)
                                                     </a>
                                                     {% endif %}

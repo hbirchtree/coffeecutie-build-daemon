@@ -15,8 +15,10 @@ app.config['MAX_CONTENT_LENGTH'] = 50*1024*1024;
 
 BINARY_DIR = os.path.join(app.root_path,'../bin')
 
+# Displayed on web frontend, might be included in REST?
 PROJECT_TITLE = "Coffee"
 
+app.config['PROJECT_TITLE'] = PROJECT_TITLE;
 app.config['UPLOAD_FOLDER'] = BINARY_DIR;
 
 # Load default config and override config from an environment variable
@@ -28,13 +30,16 @@ app.config.update(dict(
 ));
 app.config.from_envvar('FLASKR_SETTINGS', silent=True);
 
+# Check if filename is allowed
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
+# Connecting to database on start
 def connect_to_database():
     return sqlite3.connect(app.config['DATABASE']);
 
+# Opening the database at start of program or for a query
 def open_db():
     db = getattr(g,'_database',None);
     if db == None:
@@ -42,6 +47,7 @@ def open_db():
     db.row_factory = sqlite3.Row;
     return db;
 
+# Initializing the database on first run
 def init_db():
     with app.app_context():
         db = open_db();
@@ -49,6 +55,7 @@ def init_db():
             db.cursor().executescript(f.read());
         db.commit();
 
+# General database query
 def query_db(query,args=(),one=False):
     with app.app_context():
         with open_db() as db:
@@ -58,6 +65,7 @@ def query_db(query,args=(),one=False):
             db.commit();
             return (rd[0] if rd else None) if one else rd;
 
+# Submitting a build report to the database
 def enter_report(obj):
     query_db("INSERT INTO BUILDREPORTS VALUES(NULL,?,?,?,?,?,?);",args=(obj['host'],obj['commit'],obj['platform'],obj['status'],obj['log'],obj['time']));
     return;
@@ -68,22 +76,55 @@ def gen_binary_filename(arch,host,commit):
     m.update("%s%s%s" % (arch,host,commit[:10]));
     return m.hexdigest()+".zip";
 
+# Check if a binary file exists in the filesystem
+def verify_binary_filename(arch,host,commit):
+    return os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'],
+                                       gen_binary_filename(arch,
+                                                           host,
+                                                           commit)
+                                       ));
+
+# Acquiring all the log data from builds, including failed ones
 def get_log_data():
     elements = query_db("SELECT * FROM BUILDREPORTS;");
     cpy = [];
-    for rw in elements:
-        ref = [];
-        for i in range(len(rw)):
-            if i == 6 or i == 4 or i == 0:
-                # Some arguments must be integers
-                ref.append(int(rw[i]));
-            else:
-                ref.append(str(rw[i]));
-        print(len(ref));
-        ref.append(os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], gen_binary_filename(ref[3],ref[1],ref[2]) )));
-        print(ref[7]);
+    for el in elements:
+        ref = {};
+        ref['bid'] = int(el[0]);
+        ref['host'] = el[1];
+        ref['commit'] = el[2];
+        ref['platform'] = el[3];
+        ref['status'] = int(el[4]);
+        ref['log'] = el[5];
+        ref['time'] = int(el[6]);
+        ref['has_binary'] = verify_binary_filename(ref['platform'],ref['host'],ref['commit']);
         cpy.append(ref);
     return cpy;
+
+# Acquiring the latest binary release files
+def get_release_data():
+    elements = query_db(
+        """
+        SELECT PLATFORM_ID,SERVERID,REPORT_ID,MAX(BUILD_TIME),HAS_BINARY FROM BUILDREPORTS
+        WHERE HAS_BINARY = 1
+        GROUP BY PLATFORM_ID
+        ORDER BY MAX(BUILD_TIME) ASC;
+        """);
+    cpy = [];
+    for el in elements:
+        ref = {};
+        ref['platform'] = el[0];
+        ref['host'] = el[1];
+        ref['bid'] = int(el[2]);
+        ref['time'] = int(el[3]);
+        cpy.append(ref);
+    return cpy;
+
+def get_project_data():
+    pinfo = {};
+    pinfo['title'] = app.config['PROJECT_TITLE'];
+    pinfo['max_binsize'] = app.config['MAX_CONTENT_LENGTH'];
+    return pinfo;
 
 @app.teardown_appcontext
 def close_db(exception):
@@ -92,33 +133,35 @@ def close_db(exception):
         db.close();
 
 # REST-ful interface to get log data links and etc.
-@app.route("/rest",methods=['GET'])
-def restful_route():
+@app.route("/rest/all",methods=['GET'])
+def restful_all_route():
     cpy = get_log_data();
     rst = [];
     for el in cpy:
-        el.pop(5);
-        el_d = {};
-        el_d['bid'] = el[0];
-        el_d['host'] = el[1];
-        el_d['commit'] = el[2];
-        el_d['platform'] = el[3];
-        el_d['status'] = el[4];
-        el_d['time'] = el[5];
-        el_d['has_binary'] = el[7];
-        rst.append(el_d);
-    return jsonify({'logs':rst});
+        el.pop('log');
+        rst.append(el);
+    data = {};
+    data['logs'] = rst;
+    data['project'] = get_project_data();
+    return jsonify(data);
+
+@app.route("/rest/releases",methods=['GET'])
+def restful_releases_route():
+    data = {};
+    data['releases'] = get_release_data();
+    data['project'] = get_project_data();
+    return jsonify(data);
 
 # Present a nice overview of log data and etc.
 @app.route("/",methods=['GET'])
 def default_route():
     cpy = get_log_data();
     for rw in cpy:
-        if rw[6] != 0:
-            rw[6] = datetime.datetime.fromtimestamp(int(rw[6])).strftime("%Y-%m-%dT%H:%M:%S");
+        if rw['time'] != 0:
+            rw['time'] = datetime.datetime.fromtimestamp(rw['time']).strftime("%Y-%m-%dT%H:%M:%S");
         else:
-            rw[6] = "N/A";
-    return render_template('tables.html',name='index',entries=cpy,title="CoffeeCutie Build Status",project=PROJECT_TITLE);
+            rw['time'] = "N/A";
+    return render_template('tables.html',name='index',entries=cpy,title="CoffeeCutie Build Status",project=app.config['PROJECT_TITLE']);
 
 # For servers, get their logs and put them in the database
 @app.route("/logger/data/<arch>",methods=['POST'])
@@ -179,15 +222,17 @@ def push_binary_release(arch,host,commit):
     commit_s = "%s%%" % (commit,);
 
     data = query_db("""
-                    SELECT REPORT_ID FROM BUILDREPORTS
+                    SELECT BUILD_STATUS,REPORT_ID FROM BUILDREPORTS
                     WHERE PLATFORM_ID = ? AND
                     SERVERID = ? AND
                     BUILD_HASH LIKE ?;
                     """,
                     args=(arch,host,commit_s),one=True);
 
-    if not data:
+    if not data or data[0] != 0:
         return '{"status": 1}';
+
+    query_db("UPDATE BUILDREPORTS SET HAS_BINARY = 1 WHERE REPORT_ID = ?;",args=(data[1],));
 
     binname = gen_binary_filename(arch,host,commit);
 
