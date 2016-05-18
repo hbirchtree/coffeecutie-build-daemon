@@ -50,12 +50,13 @@ def init_db():
         db.commit();
 
 def query_db(query,args=(),one=False):
-    with open_db() as db:
-        cur = db.execute(query,args);
-        rd = cur.fetchall();
-        cur.close();
-        db.commit();
-        return (rd[0] if rd else None) if one else rd;
+    with app.app_context():
+        with open_db() as db:
+            cur = db.execute(query,args);
+            rd = cur.fetchall();
+            cur.close();
+            db.commit();
+            return (rd[0] if rd else None) if one else rd;
 
 def enter_report(obj):
     query_db("INSERT INTO BUILDREPORTS VALUES(NULL,?,?,?,?,?,?);",args=(obj['host'],obj['commit'],obj['platform'],obj['status'],obj['log'],obj['time']));
