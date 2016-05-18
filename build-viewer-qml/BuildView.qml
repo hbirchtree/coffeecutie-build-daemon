@@ -21,29 +21,6 @@ ApplicationWindow {
         }
     }
 
-//    ListModel {
-//        id: build_data
-
-//        ListElement {
-//            host: "Betelgeuse"
-//            platform: "lin64_amd64"
-//            colorCode: "blue"
-//            timest: "2000-00-00T00:00:00"
-//        }
-//        ListElement {
-//            host: "betelzombie"
-//            platform: "win64_amd64"
-//            colorCode: "red"
-//            timest: "2000-00-00T00:00:00"
-//        }
-//        ListElement {
-//            host: "Hackintosh-Builder.local"
-//            platform: "mac64_amd64"
-//            colorCode: "green"
-//            timest: "2000-00-00T00:00:00"
-//        }
-//    }
-
     BuildViewForm{
         id: bform
         anchors.fill: parent
