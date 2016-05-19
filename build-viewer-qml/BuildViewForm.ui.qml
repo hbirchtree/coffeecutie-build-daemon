@@ -1,13 +1,21 @@
 import QtQuick 2.4
 import QtQuick.Controls 1.4
-import QtQuick.Layouts 1.2
 
 Item {
     property alias loadIndicatorWidget: loadIndicate;
+    property alias listView: listView;
 
     id: item1
     width: 400
     height: 400
+
+    ListView {
+        id: listView
+        anchors.rightMargin: 5
+        anchors.leftMargin: 5
+        anchors.fill: parent
+        spacing: 5
+    }
 
     BusyIndicator {
         id: loadIndicate

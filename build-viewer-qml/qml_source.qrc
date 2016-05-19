@@ -1,6 +1,8 @@
 <RCC>
-    <qresource prefix="/qmldata">
+    <qresource prefix="/">
         <file>BuildView.qml</file>
         <file>BuildViewForm.ui.qml</file>
+        <file>BuildItem.qml</file>
+        <file>DetailsPopup.qml</file>
     </qresource>
 </RCC>
