@@ -11,6 +11,7 @@ Item {
 
     ListView {
         id: listView
+        boundsBehavior: Flickable.DragOverBounds
         anchors.rightMargin: 5
         anchors.leftMargin: 5
         anchors.fill: parent
@@ -21,5 +22,7 @@ Item {
         id: loadIndicate
         anchors.verticalCenter: parent.verticalCenter
         anchors.horizontalCenter: parent.horizontalCenter
+        visible: false
+        running: false
     }
 }

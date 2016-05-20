@@ -3,6 +3,7 @@ import QtQuick.Controls 1.4
 import QtQuick.Layouts 1.1
 import QtQuick.Window 2.0
 import BuildView 1.0
+import "."
 
 ApplicationWindow {
     width: 640
@@ -13,16 +14,19 @@ ApplicationWindow {
         return a > b ? a : b;
     }
 
+    id: app
+    color: GlobalData.backgroundBase
+
     title: qsTr("Build Viewer")
     visible: true
     onSceneGraphInitialized: {
-        data_source.update();
+        console.log("Scaling factor: "+GlobalData.scalingCoeff)
     }
 
     BuildInfo {
         id: data_source
-        server: "192.168.10.152"
-        serverPort: 5000
+        server: logform.connectHost
+        serverPort: logform.connectPort
         onFetchingChanged: {
             bform.loadIndicatorWidget.running = data_source.fetching
             bform.loadIndicatorWidget.visible = data_source.fetching
@@ -55,14 +59,39 @@ ApplicationWindow {
 
     DetailsPopup{
         id: details
-        anchors.fill: parent
         focus: true
 
-        coverage: parent.width < 800 ? 0.8 : 0.4;
+        width: parent.width
+        height: parent.height
+
+        onBackgroundTouched: toggleShow()
+
+        coverage: {
+            parent.width < 800
+                    ? 0.8 :
+                      320*GlobalData.scalingCoeff/parent.width;
+        }
 
         onDownloadPressed: Qt.openUrlExternally(
-                               "http://"+data_source.server+":"+data_source.serverPort+"/bin/"+build_id)
+                               "http://"+data_source.server
+                               +":"+data_source.serverPort+"/bin/"+build_id)
+
         onViewLogPressed: Qt.openUrlExternally(
-                              "http://"+data_source.server+":"+data_source.serverPort+"/logs/"+build_id)
+                              "http://"+data_source.server
+                              +":"+data_source.serverPort+"/logs/"+build_id)
+    }
+
+    LoginForm{
+        id: logform
+        width: parent.width
+        height: parent.height
+        state: "compact"
+
+        onConnectPressed: {
+            data_source.server = connectHost
+            data_source.serverPort = connectPort
+            state = "default"
+            data_source.update()
+        }
     }
 }

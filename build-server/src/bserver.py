@@ -67,6 +67,7 @@ def query_db(query,args=(),one=False):
 
 # Submitting a build report to the database
 def enter_report(obj):
+    print("Log size: %s" % (len(obj['log'])));
     query_db("INSERT INTO BUILDREPORTS VALUES(NULL,?,?,?,?,?,?,?);",args=(obj['host'],obj['commit'],obj['platform'],obj['status'],obj['log'],obj['time'],0));
     return;
 
@@ -172,7 +173,6 @@ def build_log_data(arch):
     logdata = ''
     try:
         # Truncate log if too long
-        obj['log'] = obj['log'][:-1000000]
         obj['platform'] = arch;
         # Imprint reporting time, useful to know when a build was released
         # Might include build duration as well

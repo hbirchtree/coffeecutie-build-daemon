@@ -4,5 +4,8 @@
         <file>BuildViewForm.ui.qml</file>
         <file>BuildItem.qml</file>
         <file>DetailsPopup.qml</file>
+        <file>LoginForm.qml</file>
+        <file>GlobalData.qml</file>
+        <file>qmldir</file>
     </qresource>
 </RCC>

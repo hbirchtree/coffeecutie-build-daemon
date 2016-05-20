@@ -2,6 +2,7 @@ import QtQuick 2.0
 import QtQuick.Controls 1.4
 import QtQuick.Layouts 1.1
 import QtQuick.Window 2.0
+import "."
 
 Item {
     function displayDetails()
@@ -26,30 +27,21 @@ Item {
 
     id: delegateItemThingy
     width: 300
-    height: 40 * scalingCoeff
-
-    MouseArea {
-        id: summaryBoxClicker
-        anchors.fill: parent
-
-        onClicked: {
-            itemPressed()
-        }
-    }
+    height: 40 * GlobalData.scalingCoeff
 
     Item {
         anchors.fill: parent
 
         Item {
             id: summaryBox
-            height: 40 * scalingCoeff
+            height: 40 * GlobalData.scalingCoeff
             anchors.right: parent.right
             anchors.left: parent.left
             anchors.top: parent.top
             Rectangle {
                 id: summaryIcon
-                width: 40 * scalingCoeff
-                height: 40 * scalingCoeff
+                width: 40 * GlobalData.scalingCoeff
+                height: 40 * GlobalData.scalingCoeff
                 color: colorCode
                 border.color: colorCode
                 gradient: Gradient {
@@ -73,10 +65,12 @@ Item {
                     id: summaryLabel
                     text: host + " | " + platform
                     font.bold: true
+                    color: GlobalData.textBase
                 }
                 Label {
                     id: summarySubLabel
                     text: timest
+                    color: GlobalData.textBase
                 }
             }
         }
@@ -86,8 +80,8 @@ Item {
             anchors.fill: parent
             opacity: 0
             x: 0
-            y: 40 * scalingCoeff
-            anchors.topMargin: 40 * scalingCoeff + 5
+            y: 40 * GlobalData.scalingCoeff
+            anchors.topMargin: 40 * GlobalData.scalingCoeff + 5
 
             GridLayout {
                 anchors.fill: parent
@@ -150,7 +144,7 @@ Item {
 
             PropertyChanges {
                 target: detailBox
-                height: parent.height-(40 * scalingCoeff)
+                height: parent.height-(40 * GlobalData.scalingCoeff)
                 opacity: 1
             }
         }
@@ -174,4 +168,13 @@ Item {
                 easing.type: Easing.InOutQuad; duration: 200 }
         }
     ]
+
+    MouseArea {
+        id: summaryBoxClicker
+        anchors.fill: parent
+
+        onClicked: {
+            itemPressed()
+        }
+    }
 }
