@@ -109,7 +109,7 @@ def get_release_data():
         SELECT PLATFORM_ID,SERVERID,REPORT_ID,MAX(BUILD_TIME),HAS_BINARY FROM BUILDREPORTS
         WHERE HAS_BINARY = 1
         GROUP BY PLATFORM_ID
-        ORDER BY MAX(BUILD_TIME) ASC;
+        ORDER BY MAX(BUILD_TIME) DESC;
         """);
     cpy = [];
     for el in elements:
@@ -126,6 +126,14 @@ def get_project_data():
     pinfo['title'] = app.config['PROJECT_TITLE'];
     pinfo['max_binsize'] = app.config['MAX_CONTENT_LENGTH'];
     return pinfo;
+
+def prettify_time_values(arr):
+    for rw in arr:
+        if rw['time'] != 0:
+            rw['time'] = datetime.datetime.fromtimestamp(rw['time']).strftime("%Y-%m-%dT%H:%M:%S");
+        else:
+            rw['time'] = "N/A";
+    return arr;
 
 @app.teardown_appcontext
 def close_db(exception):
@@ -156,13 +164,11 @@ def restful_releases_route():
 # Present a nice overview of log data and etc.
 @app.route("/",methods=['GET'])
 def default_route():
+    rcpy = get_release_data();
     cpy = get_log_data();
-    for rw in cpy:
-        if rw['time'] != 0:
-            rw['time'] = datetime.datetime.fromtimestamp(rw['time']).strftime("%Y-%m-%dT%H:%M:%S");
-        else:
-            rw['time'] = "N/A";
-    return render_template('tables.html',name='index',entries=cpy,title="CoffeeCutie Build Status",project=app.config['PROJECT_TITLE']);
+    rcpy = prettify_time_values(rcpy);
+    cpy = prettify_time_values(cpy);
+    return render_template('tables.html',name='index',entries=cpy,releases=rcpy,title="CoffeeCutie Build Status",project=app.config['PROJECT_TITLE']);
 
 # For servers, get their logs and put them in the database
 @app.route("/logger/data/<arch>",methods=['POST'])
