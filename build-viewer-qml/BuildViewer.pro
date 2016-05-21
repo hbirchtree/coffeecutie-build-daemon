@@ -2,7 +2,7 @@ TEMPLATE = app
 
 QT += qml quick widgets
 
-CONFIG += c++11
+CONFIG += c++11 qtquickcompiler
 
 INCLUDEPATH += include
 

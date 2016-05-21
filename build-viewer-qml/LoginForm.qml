@@ -27,7 +27,7 @@ Rectangle {
         id: loginBox
         width: parent.width
         y: parent.height
-        height: 100
+        height: 100 * GlobalData.scalingCoeff
 
         MouseArea{
             id: touchGrabber
@@ -66,11 +66,12 @@ Rectangle {
                 id: textField2
                 text: connectPort
                 placeholderText: qsTr("Port")
+                validator: IntValidator {}
             }
 
             Item {
-                width: 10
-                height: 10
+                width: 5
+                height: 5
             }
 
             Button {
@@ -95,7 +96,7 @@ Rectangle {
 
             PropertyChanges {
                 target: loginBox
-                height: 100
+                height: 100 * GlobalData.scalingCoeff
 
                 x: rectangle1.left
                 y: rectangle1.height-height
@@ -109,6 +110,11 @@ Rectangle {
             PropertyChanges {
                 target: touchGrabber
                 x: 0
+            }
+
+            PropertyChanges {
+                target: gridLayout1
+                rowSpacing: 2
             }
         },
         State {
