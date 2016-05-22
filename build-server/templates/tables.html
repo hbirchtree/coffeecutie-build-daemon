@@ -44,26 +44,17 @@
                     </thead>
                     <tbody>
                         {% for entry in releases %}
-                        <tr data-toggle="collapse"
-                            data-target="#datarel{{ entry['bid'] }}"
+                        <tr 
                             colspan="3"
-                            class="accordion-toggle">
+                            class="accordion-toggle"
+                            onclick="location.href='bin/{{entry['bid']}}'">
                             <td>{{ entry['host'] }}</td>
                             <td>{{ entry['platform'] }}</td>
                             <td>{{ entry['time'] }}</td>
                         </tr>
-                        <tr>
-                        <td colspan="3" class="hiddenRow">
-                            <div class="accordion-body collapse" id="datarel{{ entry['bid'] }}">
-                                <a href="bin/{{ entry['bid'] }}" target="_blank">
-                                    (Link)
-                                </a>
-                            </div>
-                        </td>
-                        </tr>
                         {% else %}
                         <tr class="info" colspan="3">
-                            <td colspan="3" class="text-info">No builds to display!</td>
+                            <td colspan="3" class="text-info">No releases to display!</td>
                         </tr>
                         {% endfor %}
                     </tbody>
