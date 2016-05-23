@@ -52,20 +52,35 @@ bool operator<(GitCommit const& c1, GitCommit const& c2)
     return c1.ts < c2.ts && c1.hash != c2.hash;
 }
 
-struct Repository
+struct BuildServer
+{
+    CString addr;
+    uint16 port;
+};
+
+struct RepoConfig
 {
     CString repository;
     CString branch;
+    CString upstream;
+};
+
+struct BuildConfig
+{
+    Vector<Proc_Cmd> queue;
 
     CString build;
     CString repodir;
 
-    CString upstream;
-
-    Vector<Proc_Cmd> command_queue;
-
+    CString system;
     uint64 interval;
+};
 
+struct BuildEnvironment
+{
+    BuildServer server;
+    BuildConfig b_cfg;
+    RepoConfig r_cfg;
     uint32 flags;
 };
 
@@ -82,7 +97,7 @@ struct Repository_tmp
 
 struct DataSet
 {
-    Repository repo;
+    BuildEnvironment repo;
     Repository_tmp temp;
 };
 
@@ -93,6 +108,7 @@ bool ReportBuildStatus(uint16 status, CString const& commit, CString const& log,
     REST::Host dest = buildrep_server;
     REST::Request req = {};
 
+    /* Build HTTP request */
     HTTP::InitializeRequest(req);
     req.resource = cStringFormat(
                 "/logger/data/{0}",
@@ -102,6 +118,7 @@ bool ReportBuildStatus(uint16 status, CString const& commit, CString const& log,
     req.mimeType = "application/json";
     req.values["Accept"] = "application/json";
 
+    /* We create the JSON payload with string formatting. Bleh. */
     req.payload = cStringFormat(
                 "{"
                 "\"host\": \"{0}\","
@@ -174,17 +191,18 @@ DataSet create_item(cstring file)
     /* Clear all structures */
     DataSet repo = {};
 
+    BuildEnvironment& repo_data = repo.repo;
+
     repo.temp = {};
     repo.temp.last_commit = {};
 
     /* Default, sane values */
-    repo.repo.branch = "master";
-    repo.repo.upstream = "origin";
-    repo.repo.interval = 3600;
-    repo.repo.repodir = Env::CurrentDir();
-    repo.repo.build = Env::CurrentDir();
+    repo_data.r_cfg.branch = "master";
+    repo_data.r_cfg.upstream = "origin";
+    repo_data.b_cfg.interval = 3600;
+    repo_data.b_cfg.repodir = Env::CurrentDir();
+    repo_data.b_cfg.build = Env::CurrentDir();
     CString build_sys = "cmake";
-    Proc_Cmd clean_cmd = {}; /* Some builds (win64) require cleaning sometimes */
 
     JSON::Document doc;
 
@@ -212,43 +230,54 @@ DataSet create_item(cstring file)
             return {};
     }
 
+    /* Extract root object and get the data */
     {
-        /* Extract root object and get the data */
         JSON::Value doc_ = doc.GetObject();
 
+        /* Various flags */
         if(doc_.HasMember("cleans")&&doc_["cleans"].GetBool())
-            repo.repo.flags |= CleanAlways;
+            repo_data.flags |= CleanAlways;
         if(doc_.HasMember("nofail")&&doc_["nofail"].GetBool())
-            repo.repo.flags |= IgnoreFailure;
+            repo_data.flags |= IgnoreFailure;
 
-        repo.repo.repository = JSGetString(doc_,"repository");
-        repo.repo.upstream = JSGetString(doc_,"upstream");
+        /* Server information */
+        repo_data.server.addr = JSGetString(doc_,"server:address");
+        if(doc_.HasMember("server:port")&&doc_["server:port"].IsUint())
+            repo_data.server.port = doc_["server:port"].GetUint();
 
-        repo.repo.branch = JSGetString(doc_,"branch");
-        repo.repo.build = JSGetString(doc_,"build-dir");
-        repo.repo.repodir = JSGetString(doc_,"repo-dir");
+        /* Repository information */
+        repo_data.r_cfg.repository = JSGetString(doc_,"repository");
+        repo_data.r_cfg.upstream = JSGetString(doc_,"upstream");
+        repo_data.r_cfg.branch = JSGetString(doc_,"branch");
+
+        /* Filesystem locations */
+        repo_data.b_cfg.repodir = JSGetString(doc_,"repo-dir");
+        repo_data.b_cfg.build = JSGetString(doc_,"build-dir");
+
+        /* Build information */
         build_sys = JSGetString(doc_,"build-type");
+        repo_data.b_cfg.system = JSGetString(doc_,"target");
 
+        /* Update rate */
         if(doc_.HasMember("interval"))
-            repo.repo.interval = doc_["interval"].GetUint64();
-
-        if((repo.repo.flags&CleanAlways)&&doc_.HasMember("clean-command")&&doc_["clean-command"].IsObject())
-            clean_cmd = GetCommand(doc_["clean-command"].GetObject());
+            repo_data.b_cfg.interval = doc_["interval"].GetUint64();
     }
 
     /* Create a list of commands based on build system preference */
-    Vector<Proc_Cmd>& cmd_queue = repo.repo.command_queue;
+    Vector<Proc_Cmd>& cmd_queue = repo_data.b_cfg.queue;
 
     if(build_sys == "cmake")
     {
-        cstring upstream = repo.repo.upstream.c_str();
-        cstring branch = repo.repo.branch.c_str();
-        cstring build_dir = repo.repo.build.c_str();
+        cstring upstream = repo_data.r_cfg.upstream.c_str();
+        cstring branch = repo_data.r_cfg.branch.c_str();
+        cstring build_dir = repo_data.b_cfg.build.c_str();
+        cstring repo_dir = repo_data.b_cfg.repodir.c_str();
 
-        cmd_queue.push_back({git_program,{"pull",upstream,branch},{}});
-        if((repo.repo.flags&CleanAlways)&&clean_cmd.program.size())
-            cmd_queue.push_back(clean_cmd);
-        cmd_queue.push_back({cmake_program,{"--build",build_dir},{}});
+        cmd_queue.push_back({git_program,{"-C",repo_dir,"pull",upstream,branch},{}});
+        if((repo_data.flags&CleanAlways))
+            cmd_queue.push_back({cmake_program,{"--build",build_dir,"--target","clean"},{}});
+//            cmd_queue.push_back(clean_cmd);
+        cmd_queue.push_back({cmake_program,{"--build",build_dir,"--target","install"},{}});
     }else{
         cWarning("Unrecognized build system: {0}",build_sys);
     }
@@ -261,7 +290,9 @@ DataSet create_item(cstring file)
         HTTP::InitializeRequest(request);
         request.transp = REST::HTTPS;
         request.values["Accept"] = "application/atom+xml";
-        request.resource = cStringFormat("/{0}/commits/{1}.atom",repo.repo.repository,repo.repo.branch);
+        request.resource = cStringFormat("/{0}/commits/{1}.atom",
+                                         repo_data.r_cfg.repository,
+                                         repo_data.r_cfg.branch);
     }
 
     /* Print preferences back to user */
@@ -274,31 +305,40 @@ DataSet create_item(cstring file)
                 "interval = {3}\n"
                 "build-system = {4}\n"
                 "build-flags = {7}\n",
-                repo.repo.repository,
-                repo.repo.repodir,
-                repo.repo.build,
-                repo.repo.interval,
+                repo_data.r_cfg.repository,
+                repo_data.b_cfg.repodir,
+                repo_data.b_cfg.build,
+                repo_data.b_cfg.interval,
                 build_sys,
-                repo.repo.branch,
-                repo.repo.upstream,
-                repo.repo.flags);
+                repo_data.r_cfg.branch,
+                repo_data.r_cfg.upstream,
+                repo_data.flags);
 
     return repo;
 }
 
-FailureCase update_item(Repository const& data, Repository_tmp* workarea)
+FailureCase update_item(BuildEnvironment const& data, Repository_tmp* workarea)
 {
     /* If it is not our time, don't do anything */
     if(Time::CurrentTimestamp() < workarea->wakeup)
         return Nothing;
 
+    /* Set global variables for server and system configuration */
+    if(!data.b_cfg.system.empty())
+        crosscompiling = data.b_cfg.system.c_str();
+    else
+        crosscompiling = nullptr;
+
+    buildrep_server = data.server.addr.c_str();
+    buildrep_server_port = data.server.port;
+
     /* References for faster typing */
-    uint64 const& interval = data.interval;
+    uint64 const& interval = data.b_cfg.interval;
     REST::Request const& request = workarea->request;
     CString const& expect_type = workarea->expect_type;
 
-    CString const& repo = data.repository;
-    Vector<Proc_Cmd> const command_queue = data.command_queue;
+    CString const& repo = data.r_cfg.repository;
+    Vector<Proc_Cmd> const command_queue = data.b_cfg.queue;
 
     cBasicPrint("WORKING ON: {0}",repo);
 
@@ -334,6 +374,7 @@ FailureCase update_item(Repository const& data, Repository_tmp* workarea)
 
                 cBasicPrint("Updated repository: {0}, commit={1}, ts={2}",
                             repo,cmt.hash,cmt.ts);
+
                 /* Execute command queue, die if error */
                 uint16 signal = 0;
                 CString log;
@@ -357,6 +398,7 @@ FailureCase update_item(Repository const& data, Repository_tmp* workarea)
                     }
                 }
 
+                /* Send build report */
                 ReportBuildStatus(signal,cmt.hash,log,Time::CurrentMicroTimestamp()-timer);
             }else{
                 cWarning("Mismatch commit, latest is commit={0}, ts={1}",
@@ -393,9 +435,6 @@ int32 coffee_main(int32 argc, cstring_w* argv)
         args.registerArgument(ArgumentCollection::Argument,"help");
         args.registerArgument(ArgumentCollection::Argument,"gitbin");
         args.registerArgument(ArgumentCollection::Argument,"cmakebin");
-        args.registerArgument(ArgumentCollection::Argument,"server");
-        args.registerArgument(ArgumentCollection::Argument,"serverport");
-        args.registerArgument(ArgumentCollection::Argument,"crosscompiling");
 
         args.parseArguments(argc,argv);
 
@@ -407,10 +446,7 @@ int32 coffee_main(int32 argc, cstring_w* argv)
                             "Options available:\n"
                             " --help Show this message and exit\n"
                             " --gitbin [bin] Specify Git binary\n"
-                            " --cmakebin [bin] Specify CMake binary\n"
-                            " --server [address] Address of server\n"
-                            " --serverport [poty] Port on server to connect to\n"
-                            " --crosscompiling [id] ID to expose to build server\n",
+                            " --cmakebin [bin] Specify CMake binary\n",
                             Env::ExecutableName());
                 return 0;
             }
@@ -418,17 +454,6 @@ int32 coffee_main(int32 argc, cstring_w* argv)
                 git_program = arg.second;
             else if(arg.first == "cmakebin" && arg.second)
                 cmake_program = arg.second;
-            else if(arg.first == "server" && arg.second)
-                buildrep_server = arg.second;
-            else if(arg.first == "crosscompiling" && arg.second)
-                crosscompiling = arg.second;
-            else if(arg.first == "serverport" && arg.second)
-            {
-                bool valid = true;
-                uint16 port = Convert::strtouint(arg.second,10,&valid);
-                if(valid)
-                    buildrep_server_port = port;
-            }
         }
 
 
