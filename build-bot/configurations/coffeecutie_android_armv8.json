@@ -1,0 +1,14 @@
+{
+    "server:address": "localhost",
+    "server:port": 5000,
+    "target": "and64_armv8a",
+    "nofail": true,
+    "repository": "hbirchtree/coffeecutie",
+    "branch": "master",
+    "upstream": "origin",
+    "build-dir": "",
+    "repo-dir": "",
+    "interval": 600,
+    "build-type": "cmake",
+    "cleans": false
+}

@@ -1,190 +1,11 @@
-#include <coffee/CAsio>
 #include <coffee/core/CApplication>
 #include <coffee/core/CDebug>
-#include <coffee/core/CMD>
 #include <coffee/core/CArgParser>
-#include <coffee/core/CXmlParser>
-#include <coffee/core/CJSONParser>
 
-using namespace Coffee;
+#include "fun_helpers.h"
 
 cstring git_program = "git";
 cstring cmake_program = "cmake";
-cstring buildrep_server = "localhost";
-cstring crosscompiling = nullptr;
-uint16 buildrep_server_port = 5000;
-
-enum FailureCase
-{
-    Nothing,
-
-    NoRepoSpecified = 20,
-    FeedFetchFailed = 21,
-
-    ProcessFailed   = 22,
-    XMLParseFailed  = 23,
-};
-
-enum UpdateSource
-{
-    GithubRSS = 1,
-};
-
-enum BuildTypes
-{
-    CMakeSystem = 1,
-};
-
-enum BuildSpecs
-{
-    IgnoreFailure = 0x1,
-    CleanAlways   = 0x2,
-};
-
-struct GitCommit
-{
-    CString hash;
-    Timestamp ts;
-};
-
-bool operator<(GitCommit const& c1, GitCommit const& c2)
-{
-    return c1.ts < c2.ts && c1.hash != c2.hash;
-}
-
-struct BuildServer
-{
-    CString addr;
-    uint16 port;
-};
-
-struct RepoConfig
-{
-    CString repository;
-    CString branch;
-    CString upstream;
-};
-
-struct BuildConfig
-{
-    Vector<Proc_Cmd> queue;
-
-    CString build;
-    CString repodir;
-
-    CString system;
-    uint64 interval;
-};
-
-struct BuildEnvironment
-{
-    BuildServer server;
-    BuildConfig b_cfg;
-    RepoConfig r_cfg;
-    uint32 flags;
-};
-
-struct Repository_tmp
-{
-    REST::Request request;
-    REST::RestResponse response;
-    CString expect_type;
-
-    GitCommit last_commit;
-
-    Timestamp wakeup;
-};
-
-struct DataSet
-{
-    BuildEnvironment repo;
-    Repository_tmp temp;
-};
-
-bool ReportBuildStatus(uint16 status, CString const& commit, CString const& log,uint64 btime)
-{
-    ProfContext _m("Build reporting");
-
-    REST::Host dest = buildrep_server;
-    REST::Request req = {};
-
-    /* Build HTTP request */
-    HTTP::InitializeRequest(req);
-    req.resource = cStringFormat(
-                "/logger/data/{0}",
-                (crosscompiling) ? crosscompiling : SysInfo::GetSystemString());
-    req.port = buildrep_server_port;
-    req.reqtype = "POST";
-    req.mimeType = "application/json";
-    req.values["Accept"] = "application/json";
-
-    /* We create the JSON payload with string formatting. Bleh. */
-    req.payload = cStringFormat(
-                "{"
-                "\"host\": \"{0}\","
-                "\"status\": {1},"
-                "\"commit\": \"{2}\","
-                "\"log\": \"{3}\","
-                "\"build-time\": {4}"
-                "}",
-                SysInfo::HostName(),status,commit,Base64::encode(log.data(),log.size()),btime);
-
-    Profiler::Profile("Request creation");
-
-    cDebug("Sending status to {0}, resource={1}",dest,req.resource);
-
-    auto res = REST::RestRequest(dest,req);
-
-    Profiler::Profile("Request sending and receiving");
-
-    return res.code == 200;
-}
-
-cstring JSGetString(JSON::Value const& v, cstring val)
-{
-    if(v.HasMember(val)&&v[val].IsString())
-        return v[val].GetString();
-    return "";
-}
-
-GitCommit ParseEntry(XML::Element const* el)
-{
-    if(!el)
-        return {};
-
-    XML::Element const* cts = el->FirstChildElement("updated");
-    XML::Element const* cid = el->FirstChildElement("id");
-
-    if(!cts || !cid)
-        return {};
-
-    Timestamp ts = Time::ParseTimeStdTime(cts->GetText());
-    Regex::Pattern patt = Regex::Compile(".+Commit\\/([0-9a-fA-F]+)");
-
-    auto cap = Regex::Match(patt,cid->GetText(),true);
-
-    if(cap.size() < 2)
-        return {};
-
-    return {cap[1].s_match[0],ts};
-}
-
-Proc_Cmd GetCommand(JSON::Value const& obj)
-{
-    Proc_Cmd cmd;
-
-    cmd.program = JSGetString(obj,"program");
-    if(obj.HasMember("args")&&obj["args"].IsArray())
-    {
-        for(JSON::Value const& v : obj["args"].GetArray())
-        {
-            if(v.IsString())
-                cmd.argv.push_back(v.GetString());
-        }
-    }
-
-    return cmd;
-}
 
 DataSet create_item(cstring file)
 {
@@ -276,7 +97,6 @@ DataSet create_item(cstring file)
         cmd_queue.push_back({git_program,{"-C",repo_dir,"pull",upstream,branch},{}});
         if((repo_data.flags&CleanAlways))
             cmd_queue.push_back({cmake_program,{"--build",build_dir,"--target","clean"},{}});
-//            cmd_queue.push_back(clean_cmd);
         cmd_queue.push_back({cmake_program,{"--build",build_dir,"--target","install"},{}});
     }else{
         cWarning("Unrecognized build system: {0}",build_sys);
@@ -336,7 +156,6 @@ FailureCase update_item(BuildEnvironment const& data, Repository_tmp* workarea)
     uint64 const& interval = data.b_cfg.interval;
     REST::Request const& request = workarea->request;
     CString const& expect_type = workarea->expect_type;
-
     CString const& repo = data.r_cfg.repository;
     Vector<Proc_Cmd> const command_queue = data.b_cfg.queue;
 
@@ -387,9 +206,11 @@ FailureCase update_item(BuildEnvironment const& data, Repository_tmp* workarea)
                     for(CString const& a : cmd.argv)
                         cBasicPrintNoNL(" {0}",a);
                     cBasicPrintNoNL("\n");
+                    /* Execute command, capturing log and signal */
                     int sig = Proc::ExecuteLogged(cmd, &log);
                     if (sig != 0)
                     {
+                        /* On failure, either submit with error or return */
                         signal = 1;
                         cBasicPrint("Failed with signal {0}:\n{1}", sig, log);
                         if(!(data.flags&IgnoreFailure))
@@ -456,13 +277,14 @@ int32 coffee_main(int32 argc, cstring_w* argv)
                 cmake_program = arg.second;
         }
 
-
+        /* All positional arguments are interpreted as file paths */
         for(cstring it : args.getPositionalArguments())
         {
             datasets.push_back(create_item(it));
         }
     }
 
+    /* Will not enter loop if no work items are found */
     if(datasets.size() == 0)
         return 0;
 
