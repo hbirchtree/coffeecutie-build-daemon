@@ -1,8 +1,8 @@
 #pragma once
+#include "datastructures.h"
 
 #include <coffee/core/CJSONParser>
 #include <coffee/core/CXmlParser>
-#include "datastructures.h"
 
 cstring buildrep_server = "localhost";
 cstring crosscompiling = nullptr;

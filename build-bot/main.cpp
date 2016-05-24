@@ -1,8 +1,8 @@
+#include "fun_helpers.h"
+
 #include <coffee/core/CApplication>
 #include <coffee/core/CDebug>
 #include <coffee/core/CArgParser>
-
-#include "fun_helpers.h"
 
 cstring git_program = "git";
 cstring cmake_program = "cmake";
