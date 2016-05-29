@@ -121,6 +121,35 @@ def get_release_data():
         cpy.append(ref);
     return cpy;
 
+# Acquiring unit test data
+def get_unit_tests(build):
+    test_data = query_db(
+        """
+	SELECT RESULT
+        FROM TEST_REPORT AS T,BUILDREPORTS AS B
+        INNER JOIN TEST_BUILDREL AS R
+            ON T.TEST_ID = R.TEST_ID AND B.REPORT_ID = R.REPORT_ID
+        WHERE B.REPORT_ID = ?;
+        """,
+        args=(build,),one=True);
+    if not test_data:
+         return (None,None);
+    elements = query_db(
+        """
+        SELECT U.RESULT,U.UNAME
+        FROM TEST_REPORT AS T,UNIT_TEST AS U
+        INNER JOIN UNIT_TESTREL AS R ON T.TEST_ID = R.TEST_ID AND U.UNIT_ID = R.UNIT_ID
+        INNER JOIN TEST_BUILDREL AS B ON B.TEST_ID = T.TEST_ID AND B.REPORT_ID = ?;
+        """,
+        args=(build,));
+    cpy = [];
+    for el in elements:
+        ref = {};
+        ref['result'] = int(el[0]);
+        ref['testname'] = el[1];
+        cpy.append(ref);
+    return (int(test_data[0]),cpy);
+
 def get_project_data():
     pinfo = {};
     pinfo['title'] = app.config['PROJECT_TITLE'];
@@ -141,8 +170,18 @@ def close_db(exception):
     if db != None:
         db.close();
 
+@app.route("/rest",methods=['GET'])
+def restful_help():
+    helpme = {};
+    helpme['v1'] = {};
+    helpme['v1']['tests'] = {};
+    helpme['v1']['tests']['<build_id>'] = "Retrieve test data";
+    helpme['v1']['releases'] = "Retrieve data on binary releases";
+    helpme['v1']['all'] = "Retrieve data on builds";
+    return jsonify(helpme);
+
 # REST-ful interface to get log data links and etc.
-@app.route("/rest/all",methods=['GET'])
+@app.route("/rest/v1/all",methods=['GET'])
 def restful_all_route():
     cpy = get_log_data();
     rst = [];
@@ -154,7 +193,17 @@ def restful_all_route():
     data['project'] = get_project_data();
     return jsonify(data);
 
-@app.route("/rest/releases",methods=['GET'])
+@app.route("/rest/v1/tests/<int:build>",methods=['GET'])
+def restful_test_route(build):
+    data = {};
+    data_tmp = get_unit_tests(build);
+    if data_tmp[0] == None:
+        return jsonify(data);
+    data['id'] = data_tmp[0];
+    data['data'] = data_tmp[1];
+    return jsonify(data);
+
+@app.route("/rest/v1/releases",methods=['GET'])
 def restful_releases_route():
     data = {};
     data['releases'] = get_release_data();

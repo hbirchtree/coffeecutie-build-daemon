@@ -74,7 +74,7 @@ public:
 public slots:
     void update()
     {
-        QUrl url(QString("http://%1:%2/rest/all")
+        QUrl url(QString("http://%1:%2/rest/v1/all")
                  .arg(m_server)
                  .arg(m_serverPort));
 
