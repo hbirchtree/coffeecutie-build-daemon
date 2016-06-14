@@ -16,7 +16,9 @@ def clean_binaries():
             continue;
         bserver.query_db(
             """
-            UPDATE BUILDREPORTS SET HAS_BINARY = 1 WHERE REPORT_ID = ?;
+            UPDATE BUILDREPORTS
+            SET HAS_BINARY = 1
+            WHERE REPORT_ID = ?;
             """,args=(ent[3],));
     print("Deleting: %s" % (file_pool,));
     for f in file_pool:
