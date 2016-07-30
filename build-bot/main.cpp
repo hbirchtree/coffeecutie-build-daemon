@@ -173,7 +173,7 @@ FailureCase update_item(BuildEnvironment const& data, Repository_tmp* workarea)
     {
         /* Extract Atom feed and find latest commit (first in list, hopefully) */
         XML::Document* doc = XML::XMLRead(
-                    BytesConst{response.payload.size(),(byte_t*)response.payload.c_str()});
+                    BytesConst{(byte_t*)response.payload.c_str(),response.payload.size()});
 
         XML::Element* feed = doc->FirstChildElement("feed");
 

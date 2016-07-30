@@ -3,6 +3,7 @@
 
 #include <coffee/core/CJSONParser>
 #include <coffee/core/CXmlParser>
+#include <coffee/core/CProfiling>
 
 cstring buildrep_server = "localhost";
 cstring crosscompiling = nullptr;
