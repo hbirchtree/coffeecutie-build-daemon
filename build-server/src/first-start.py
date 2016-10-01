@@ -2,7 +2,13 @@
 
 # Run this on first start to create the database!
 
-from bserver import init_db
+from databases import init_db,app
+import os
 
 if __name__ == "__main__":
-	init_db();
+    try:
+        print("Creating %s" % app.config['DATABASE_PATH'])
+        os.makedirs(app.config['DATABASE_PATH'])
+    except OSError:
+        pass
+    init_db();
