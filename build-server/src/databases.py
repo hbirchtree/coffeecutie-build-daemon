@@ -13,8 +13,16 @@ def connect_to_database():
 # Opening the database at start of program or for a query
 def open_db():
     db = getattr(g,'_database',None);
-    if db == None:
+    
+    # Attempt to load database, if it fails, create it
+    try:
+        if db == None:
+            db = g._database = connect_to_database();
+    except sqlite3.OperationalError:
+        os.makedirs(app.config['DATABASE_PATH'])
+        init_db()
         db = g._database = connect_to_database();
+        
     db.row_factory = sqlite3.Row;
     return db;
 
